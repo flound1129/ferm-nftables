@@ -30,7 +30,7 @@ class Lexer:
         'proto', 'sport', 'dport', 'icmp-type', 'fragment', 'log', 'limit',
         'limit-burst', 'tos', 'ttl', 'mark', 'state', 'ctstate', 'policy',
         'ACCEPT', 'DROP', 'REJECT', 'LOG', 'MASQUERADE', 'DNAT', 'SNAT',
-        'RETURN', 'TARPIT', 'QUEUE', 'DROP', 'mod', 'module', 'modprobe',
+        'RETURN', 'TARPIT', 'QUEUE', 'mod', 'module', 'modprobe',
         'goto', 'subchain', '@subchain', '@gotosubchain', '@if', '@else',
         '@include', '@def', '@hook', '@exec', '@shell',
         'in', 'out', 'forward', 'pre', 'post',
@@ -44,7 +44,6 @@ class Lexer:
         self.tokens: List[Token] = []
         self._in_brace_depth = 0
         self._after_module = False
-        self._prev_token_type = None
 
     def peek(self, offset: int = 1) -> Optional['Token']:
         idx = self.pos + offset - 1

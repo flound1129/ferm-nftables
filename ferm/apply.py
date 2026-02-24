@@ -177,8 +177,12 @@ class Ferm:
                 sys.exit(1)
 
     def show_lines(self):
-        save_output = generate_iptables_restore(self.domains, self.flush)
-        print(save_output)
+        if self.use_nft:
+            nft_output = generate_nft_rules(self.domains)
+            print(nft_output)
+        else:
+            save_output = generate_iptables_restore(self.domains, self.flush)
+            print(save_output)
 
 
 def main():

@@ -1,5 +1,4 @@
-import re
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from .parser import Domain, Rule
 
@@ -45,17 +44,19 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
     
     if rule.source:
         src = rule.source
+        prefix = "ip6" if rule.domain_family == "ip6" else "ip"
         if src.startswith('!'):
-            parts.append(f"ip saddr != {src[1:]}")
+            parts.append(f"{prefix} saddr != {src[1:]}")
         else:
-            parts.append(f"ip saddr {src}")
+            parts.append(f"{prefix} saddr {src}")
     
     if rule.dest:
         dst = rule.dest
+        prefix = "ip6" if rule.domain_family == "ip6" else "ip"
         if dst.startswith('!'):
-            parts.append(f"ip daddr != {dst[1:]}")
+            parts.append(f"{prefix} daddr != {dst[1:]}")
         else:
-            parts.append(f"ip daddr {dst}")
+            parts.append(f"{prefix} daddr {dst}")
     
     if rule.fragment:
         parts.append("frag more-fragments")
@@ -154,7 +155,13 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
         elif target == 'REDIRECT':
             parts.append("redirect")
         elif target == 'MARK':
-            parts.append(f"set mark {rule.target_options[1] if len(rule.target_options) > 1 else ''}")
+            mark_value = None
+            for i, opt in enumerate(rule.target_options):
+                if opt.lower() == 'set-mark' and i + 1 < len(rule.target_options):
+                    mark_value = rule.target_options[i + 1]
+                    break
+            if mark_value:
+                parts.append(f"meta mark set {mark_value}")
         else:
             parts.append(f"jump {target}")
     

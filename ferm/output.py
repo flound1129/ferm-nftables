@@ -1,5 +1,4 @@
-import re
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from .parser import Domain, Rule
 
