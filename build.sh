@@ -55,7 +55,7 @@ EOF
         cp debian/ferm-nftables.service pkg/lib/systemd/system/ferm.service
         
         cat > pkg/DEBIAN/control << EOF
-Package: ferm
+Package: ferm-nftables
 Version: 1.0.0~${TIMESTAMP}+${CODENAME}
 Architecture: all
 Depends: python3, iptables, nftables
@@ -70,7 +70,7 @@ Description: ferm syntax parser for iptables-nftables
 EOF
         
         # Build package
-        dpkg-deb --build pkg ferm_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb
+        dpkg-deb --build pkg ferm-nftables_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb
         
-        echo "Built: ferm_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb"
+        echo "Built: ferm-nftables_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb"
     '

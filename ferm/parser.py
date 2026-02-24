@@ -267,7 +267,7 @@ class Parser:
         self.defines = defines or {}
         self.functions: Dict[str, Any] = {}
         self.stack: List[Dict] = [{}]
-        self.domains: Dict[str, Domain] = {'ip': Domain('ip'), 'ip6': Domain('ip6')}
+        self.domains: Dict[str, Domain] = {'ip': Domain('inet')}
         self.current_domain = 'ip'
         self.current_table = 'filter'
         self.current_chain = ''
@@ -673,14 +673,9 @@ class Parser:
             return
 
     def _parse_domain(self, domain: str):
-        self.current_domain = domain.lower()
-        if domain.upper() == 'IP':
-            self.current_domain = 'ip'
-        elif domain.upper() == 'IP6':
-            self.current_domain = 'ip6'
-        
-        self.current_rule.domain = self.current_domain
-        self.current_rule.domain_family = self.current_domain
+        self.current_domain = 'ip'
+        self.current_rule.domain = 'inet'
+        self.current_rule.domain_family = 'inet'
 
     def _parse_interface(self):
         negated = False
