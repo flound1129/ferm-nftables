@@ -1,0 +1,18 @@
+[Unit]
+Description=ferm-nftables firewall configuration
+After=network-pre.target
+Before=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ferm-nftables /etc/ferm/ferm.conf
+ExecStop=/usr/sbin/iptables -F; /usr/sbin/iptables -t nat -F; /usr/sbin/iptables -t mangle -F; /usr/sbin/ip6tables -F; /usr/sbin/ip6tables -t nat -F; /usr/sbin/ip6tables -t mangle -F
+RemainAfterExit=yes
+StandardOutput=journal
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

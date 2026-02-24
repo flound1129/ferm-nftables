@@ -1,0 +1,10 @@
+ferm-nftables (1.0.0~1771875496+trixie) trixie; urgency=medium
+
+  * Initial release
+  * Parses ferm syntax and generates iptables-nftables commands
+  * Supports tables, chains, targets, protocols, addresses, ports
+  * Compatible with iptables-restore format
+  * Includes systemd service
+  * Implements --interactive/--timeout for safe rollbacks
+
+ -- OpenCode <opencode@example.com>  Mon, 23 Feb 2026 00:00:00 +0000

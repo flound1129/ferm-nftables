@@ -1,0 +1,72 @@
+.TH FERM-NFT 1 "February 2026"
+.SH NAME
+ferm-nft \- firewall rule parser for iptables-nft
+.SH SYNOPSIS
+.B ferm-nft
+[\fIoptions\fR] [\fIconfig files\fR]
+.SH DESCRIPTION
+\fBferm-nft\fR is a Python implementation that parses firewall rules in ferm
+syntax and generates iptables-nft commands. It provides the same configuration
+syntax as the original ferm tool but uses the iptables-nft (netfilter) backend.
+.SH OPTIONS
+.TP
+\fB\-n\fR, \fB\-\-noexec\fR
+Do not execute, just show what would be done
+.TP
+\fB\-F\fR, \fB\-\-flush\fR
+Flush all chains
+.TP
+\fB\-l\fR, \fB\-\-lines\fR
+Show all iptables commands
+.TP
+\fB\-i\fR, \fB\-\-interactive\fR
+Interactive mode - ask for confirmation
+.TP
+\fB\-t\fR \fITIMEOUT\fR, \fB\-\-timeout\fR \fITIMEOUT\fR
+Timeout for interactive mode (seconds)
+.TP
+\fB\-\-remote\fR
+Remote mode - ignore host-specific config
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Show version number
+.TP
+\fB\-\-slow\fR
+Do not use iptables-restore
+.TP
+\fB\-\-shell\fR
+Generate shell script
+.TP
+\fB\-\-domain\fR \fI{ip|ip6}\fR
+Process only the specified domain
+.TP
+\fB\-d\fR \fIDEFINE\fR, \fB\-\-def\fR \fIDEFINE\fR
+Override a variable (e.g., "$name=value")
+.TP
+\fB\-\-noflush\fR
+Do not flush existing rules when restoring
+.TP
+\fB\-\-use-legacy\fR
+Use iptables-legacy instead of iptables-nft
+.SH CONFIGURATION FILE FORMAT
+ferm-nft uses the same configuration syntax as ferm. Example:
+.PP
+.nf
+.RS
+table filter {
+    chain INPUT {
+        policy DROP;
+        mod state state (ESTABLISHED RELATED) ACCEPT;
+        interface lo ACCEPT;
+        proto tcp dport ssh ACCEPT;
+    }
+    chain OUTPUT policy ACCEPT;
+}
+.RE
+.fi
+.SH SEE ALSO
+\fBiptables\fR(8), \fBiptables-restore\fR(8)
+.SH AUTHOR
+Written by OpenCode
+.SH LICENSE
+GPL-2+ \- GNU General Public License version 2 or later

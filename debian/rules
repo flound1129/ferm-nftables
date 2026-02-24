@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python3
+
+override_dh_install:
+	dh_install ferm-nftables.py usr/bin/ferm-nftables
+	dh_install debian/ferm-nftables.1 usr/share/man/man1/
