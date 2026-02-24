@@ -48,8 +48,8 @@ Not working (need functions): antiddos, arptables, dmz_router, dsl_router, ebtab
 
 ## Tests
 
-- 25 tests passing
-- 51% code coverage
+- 153 tests passing
+- 62% code coverage
 
 ## Build
 

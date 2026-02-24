@@ -6,11 +6,13 @@ Build-Depends: python3, python3-setuptools
 Standards-Version: 4.6.2
 Vcs-Git: https://github.com/example/ferm-nftables.git
 
-Package: ferm-nftables
+Package: ferm
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}, iptables, nftables
+Conflicts: ferm
+Replaces: ferm
 Description: ferm syntax parser for iptables-nftables
- ferm-nftables is a Python implementation that parses firewall rules in ferm
+ ferm is a Python implementation that parses firewall rules in ferm
  syntax and generates iptables-nftables commands. It provides the same
  configuration syntax as the original ferm tool but uses iptables-nftables
  (nftables backend) instead of iptables-legacy.

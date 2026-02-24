@@ -4,7 +4,7 @@ set -e
 CODENAME="${1:-bookworm}"
 TIMESTAMP=$(date +%s)
 
-echo "Building ferm-nftables for Debian ${CODENAME}..."
+echo "Building ferm for Debian ${CODENAME}..."
 
 IMAGE="ferm-nftables-build:latest"
 
@@ -35,31 +35,42 @@ docker run --rm --net=host \
         rm -rf pkg
         mkdir -p pkg/DEBIAN pkg/usr/bin pkg/usr/share/man/man1 pkg/lib/systemd/system pkg/usr/lib/python3/dist-packages
         
-        cp ferm-nftables pkg/usr/bin/
-        chmod +x pkg/usr/bin/ferm-nftables
-        
+        # Install Python package
         cp -r ferm pkg/usr/lib/python3/dist-packages/
         
-        cp debian/ferm-nftables.1 pkg/usr/share/man/man1/
-        gzip pkg/usr/share/man/man1/ferm-nftables.1
+        # Create wrapper script
+        cat > pkg/usr/bin/ferm << EOF
+#!/usr/bin/python3
+import sys
+import os
+sys.path.insert(0, '/usr/lib/python3/dist-packages')
+from ferm.apply import main
+sys.exit(main())
+EOF
+        chmod +x pkg/usr/bin/ferm
         
-        cp debian/ferm-nftables.service pkg/lib/systemd/system/
+        cp debian/ferm.1 pkg/usr/share/man/man1/
+        gzip pkg/usr/share/man/man1/ferm.1
+        
+        cp debian/ferm-nftables.service pkg/lib/systemd/system/ferm.service
         
         cat > pkg/DEBIAN/control << EOF
-Package: ferm-nftables
+Package: ferm
 Version: 1.0.0~${TIMESTAMP}+${CODENAME}
 Architecture: all
 Depends: python3, iptables, nftables
+Conflicts: ferm
+Replaces: ferm
 Maintainer: OpenCode <opencode@example.com>
 Description: ferm syntax parser for iptables-nftables
- ferm-nftables is a Python implementation that parses firewall rules in ferm
+ ferm is a Python implementation that parses firewall rules in ferm
  syntax and generates iptables-nftables commands. It provides the same
  configuration syntax as the original ferm tool but uses iptables-nftables
  (nftables backend) instead of iptables-legacy.
 EOF
         
         # Build package
-        dpkg-deb --build pkg ferm-nftables_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb
+        dpkg-deb --build pkg ferm_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb
         
-        echo "Built: ferm-nftables_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb"
+        echo "Built: ferm_1.0.0~${TIMESTAMP}+${CODENAME}_amd64.deb"
     '

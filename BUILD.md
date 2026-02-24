@@ -1,4 +1,4 @@
-# ferm-nftables Build System
+# ferm Build System
 
 Docker-based build system for creating Debian packages targeting any Debian release.
 
@@ -27,7 +27,7 @@ make build-sid
 ## Output
 
 Packages are created in the project root:
-- `ferm-nftables_1.0.0~{timestamp}+{codename}_amd64.deb`
+- `ferm_1.0.0~{timestamp}+{codename}_amd64.deb`
 
 ## Docker Build System
 
@@ -48,3 +48,5 @@ The `Dockerfile` contains the build environment with:
 - Version includes Unix timestamp for uniqueness
 - Package codename matches target Debian release
 - Systemd service file included in package
+- Package Conflicts/Replaces with original ferm package
+- Installs as `ferm` binary (drop-in replacement for ferm)
