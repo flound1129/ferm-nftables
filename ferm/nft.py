@@ -1,9 +1,7 @@
-from typing import Dict, List
-
 from .parser import Domain, Rule
 
 
-VERSION = "2.8"
+VERSION = "2.9"
 
 
 def sanitize_nft(value: str) -> str:
@@ -44,19 +42,17 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
     
     if rule.source:
         src = rule.source
-        prefix = "ip6" if rule.domain_family == "ip6" else "ip"
         if src.startswith('!'):
-            parts.append(f"{prefix} saddr != {src[1:]}")
+            parts.append(f"ip saddr != {src[1:]}")
         else:
-            parts.append(f"{prefix} saddr {src}")
+            parts.append(f"ip saddr {src}")
     
     if rule.dest:
         dst = rule.dest
-        prefix = "ip6" if rule.domain_family == "ip6" else "ip"
         if dst.startswith('!'):
-            parts.append(f"{prefix} daddr != {dst[1:]}")
+            parts.append(f"ip daddr != {dst[1:]}")
         else:
-            parts.append(f"{prefix} daddr {dst}")
+            parts.append(f"ip daddr {dst}")
     
     if rule.fragment:
         parts.append("frag more-fragments")
@@ -219,19 +215,3 @@ def apply_nft_rules(dry_run: bool = False) -> bool:
     except Exception as e:
         print(f"Error applying nft rules: {e}", file=sys.stderr)
         return False
-    
-    for table_name, table in sorted(domain.tables.items()):
-        table_key = f"inet.{table_name}"
-        if table_key not in tables_created:
-            output.append(f"add table inet {table_name}")
-            tables_created.add(table_key)
-        
-        for chain_name, chain in sorted(table.chains.items()):
-            policy = chain.policy.lower() if chain.policy else "accept"
-            output.append(f"add chain inet {table_name} {chain_name} {{ policy {policy}; }}")
-            
-            for rule in chain.rules:
-                cmd = generate_nft_command(rule, chain_name, table_name)
-                output.append(cmd)
-    
-    return '\n'.join(output)

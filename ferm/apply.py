@@ -3,10 +3,9 @@ import os
 import subprocess
 import sys
 
-from .lexer import FermError
+from .lexer import FermError, Lexer
 from .nft import generate_nft_rules
 from .parser import Domain, Parser
-from .lexer import Lexer
 
 
 VERSION = "2.9"

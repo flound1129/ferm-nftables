@@ -1,4 +1,3 @@
-import ipaddress
 from typing import Any, Dict, List, Optional, Set
 
 from .lexer import FermError, Lexer, Token
