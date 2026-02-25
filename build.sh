@@ -49,6 +49,10 @@ docker run --rm --net=host \
         
         cp debian/ferm-nftables.service pkg/lib/systemd/system/ferm.service
         
+        # Install default config
+        mkdir -p pkg/etc/ferm
+        cp debian/ferm.conf pkg/etc/ferm/ferm.conf
+        
         cat > pkg/DEBIAN/control << EOF
 Package: ferm-nftables
 Version: 1.0.0~${TIMESTAMP}+${CODENAME}

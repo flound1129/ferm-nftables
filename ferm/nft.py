@@ -36,9 +36,9 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
     if rule.protocol:
         proto = rule.protocol
         if proto.startswith('!'):
-            parts.append(f"meta protocol != {proto[1:]}")
-        else:
-            parts.append(f"meta protocol {proto}")
+            parts.append(f"ip protocol != {proto[1:]}")
+        elif proto.lower() not in ('tcp', 'udp', 'icmp'):
+            parts.append(f"ip protocol {proto}")
     
     if rule.source:
         src = rule.source
@@ -92,6 +92,7 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
             ctstate_val = ctstate
         if ctstate_val.startswith('(') and ctstate_val.endswith(')'):
             ctstate_val = ctstate_val[1:-1].replace(' ', ',')
+        ctstate_val = ctstate_val.lower()
         if ctstate.startswith('!'):
             parts.append(f"ct state != {ctstate_val}")
         else:
