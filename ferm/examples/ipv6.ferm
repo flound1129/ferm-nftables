@@ -2,12 +2,12 @@
 #
 # Ferm example script
 #
-# IPv6 demo.
+# IPv4/IPv6 demo using inet tables.
 #
 # Author: Max Kellermann <max@duempel.org>
 #
 
-domain ip6 table filter {
+table filter {
     chain INPUT {
         policy DROP;
 
@@ -18,8 +18,8 @@ domain ip6 table filter {
         # allow local connections
         interface lo ACCEPT;
 
-        # allow ICMP (for neighbor solicitation, like ARP for IPv4)
-        proto ipv6-icmp ACCEPT;
+        # allow ICMP (includes ICMPv6 for inet tables)
+        proto icmp ACCEPT;
 
         # allow SSH connections
         proto tcp dport ssh ACCEPT;
