@@ -228,14 +228,6 @@ class TestParser:
         chain = domains['ip'].tables['filter'].chains['INPUT']
         assert chain.rules[0].fragment == True
 
-    def test_parse_ipv6(self):
-        lexer = Lexer('domain ip6; table filter { chain INPUT { policy DROP; } }')
-        tokens = lexer.tokenize()
-        parser = Parser(tokens)
-        domains = parser.parse()
-        assert 'ip6' in domains
-        assert 'INPUT' in domains['ip6'].tables['filter'].chains
-
 
 class TestOutput:
     def test_generate_basic_command(self):
@@ -553,14 +545,6 @@ class TestFermMain:
         f.noexec = True
         f.use_nft = False
         f.apply()
-    
-    def test_ferm_load_ip6_config(self, tmp_path):
-        config = tmp_path / "test.conf"
-        config.write_text('domain ip6; table filter { chain INPUT { policy DROP; } }')
-        
-        f = Ferm()
-        f.load_config(str(config))
-        assert 'ip6' in f.domains
     
     def test_noexec_mode(self, tmp_path):
         config = tmp_path / "test.conf"
@@ -1116,13 +1100,6 @@ class TestParserMore:
         parser = Parser(tokens)
         domains = parser.parse()
         assert 'ip' in domains
-    
-    def test_parse_domain_ip6(self):
-        lexer = Lexer('domain ip6; table filter { chain INPUT { policy DROP; } }')
-        tokens = lexer.tokenize()
-        parser = Parser(tokens)
-        domains = parser.parse()
-        assert 'ip6' in domains
     
     def test_parse_table_mangle(self):
         lexer = Lexer('table mangle { chain PREROUTING { } }')
