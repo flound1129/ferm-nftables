@@ -24,6 +24,26 @@ class Token:
         return f"Token({self.type}, {self.value!r})"
 
 
+TOKEN_LPAREN = 'LPAREN'
+TOKEN_RPAREN = 'RPAREN'
+TOKEN_LBRACE = 'LBRACE'
+TOKEN_RBRACE = 'RBRACE'
+TOKEN_SEMICOLON = 'SEMICOLON'
+TOKEN_NOT = 'NOT'
+TOKEN_DOLLAR = 'DOLLAR'
+TOKEN_AMPERSAND = 'AMPERSAND'
+TOKEN_EQUALS = 'EQUALS'
+TOKEN_AT_KEYWORD = 'AT_KEYWORD'
+TOKEN_KEYWORD = 'KEYWORD'
+TOKEN_STRING = 'STRING'
+TOKEN_NUMBER = 'NUMBER'
+TOKEN_CIDR = 'CIDR'
+
+
+def _token(type: str, value: Any, line: int = 0) -> Token:
+    return Token(type, value, line)
+
+
 class Lexer:
     KEYWORDS = {
         'table', 'chain', 'interface', 'outerface', 'saddr', 'daddr',
@@ -73,12 +93,12 @@ class Lexer:
 
     def match_value(self, expected_value: str) -> bool:
         return (self.current() is not None and 
-                self.current().type == 'STRING' and 
+                self.current().type == TOKEN_STRING and 
                 self.current().value.lower() == expected_value.lower())
 
     def consume(self, value: str) -> bool:
         token = self.current()
-        if token and token.type == 'STRING' and token.value.lower() == value.lower():
+        if token and token.type == TOKEN_STRING and token.value.lower() == value.lower():
             self.advance()
             return True
         return False
@@ -93,37 +113,36 @@ class Lexer:
 
             if char == '#':
                 self._skip_comment()
-                continue
             elif char == '"' or char == "'":
                 self._read_string(char)
             elif char == '(':
-                self.tokens.append(Token('LPAREN', '('))
+                self.tokens.append(_token(TOKEN_LPAREN, '('))
                 self.pos += 1
                 self._in_brace_depth += 1
             elif char == ')':
-                self.tokens.append(Token('RPAREN', ')'))
+                self.tokens.append(_token(TOKEN_RPAREN, ')'))
                 self.pos += 1
                 self._in_brace_depth -= 1
             elif char == '{':
-                self.tokens.append(Token('LBRACE', '{'))
+                self.tokens.append(_token(TOKEN_LBRACE, '{'))
                 self.pos += 1
             elif char == '}':
-                self.tokens.append(Token('RBRACE', '}'))
+                self.tokens.append(_token(TOKEN_RBRACE, '}'))
                 self.pos += 1
             elif char == ';':
-                self.tokens.append(Token('SEMICOLON', ';'))
+                self.tokens.append(_token(TOKEN_SEMICOLON, ';'))
                 self.pos += 1
             elif char == '!':
-                self.tokens.append(Token('NOT', '!'))
+                self.tokens.append(_token(TOKEN_NOT, '!'))
                 self.pos += 1
             elif char == '$':
-                self.tokens.append(Token('DOLLAR', '$'))
+                self.tokens.append(_token(TOKEN_DOLLAR, '$'))
                 self.pos += 1
             elif char == '&':
-                self.tokens.append(Token('AMPERSAND', '&'))
+                self.tokens.append(_token(TOKEN_AMPERSAND, '&'))
                 self.pos += 1
             elif char == '=':
-                self.tokens.append(Token('EQUALS', '='))
+                self.tokens.append(_token(TOKEN_EQUALS, '='))
                 self.pos += 1
             elif char == '@':
                 self._read_at_keyword()
@@ -165,7 +184,7 @@ class Lexer:
             raise FermError("Unterminated string", self.filename, self.line)
         value = self.text[start:self.pos]
         self.pos += 1
-        self.tokens.append(Token('STRING', value))
+        self.tokens.append(_token(TOKEN_STRING, value))
 
     def _read_at_keyword(self):
         start = self.pos
@@ -173,7 +192,7 @@ class Lexer:
         while self.pos < len(self.text) and (self.text[self.pos].isalnum() or self.text[self.pos] in '_-'):
             self.pos += 1
         value = self.text[start:self.pos]
-        self.tokens.append(Token('AT_KEYWORD', value))
+        self.tokens.append(_token(TOKEN_AT_KEYWORD, value))
 
     def _read_identifier(self):
         start = self.pos
@@ -191,16 +210,16 @@ class Lexer:
         value = self.text[start:self.pos]
 
         if self._after_module:
-            self.tokens.append(Token('STRING', value))
+            self.tokens.append(_token(TOKEN_STRING, value))
             self._after_module = False
         elif value.lower() in self.KEYWORDS:
-            self.tokens.append(Token('KEYWORD', value.upper()))
+            self.tokens.append(_token(TOKEN_KEYWORD, value.upper()))
             if value.lower() in ('mod', 'module'):
                 self._after_module = True
         elif value.startswith('@'):
-            self.tokens.append(Token('AT_KEYWORD', value))
+            self.tokens.append(_token(TOKEN_AT_KEYWORD, value))
         else:
-            self.tokens.append(Token('STRING', value))
+            self.tokens.append(_token(TOKEN_STRING, value))
 
     def _read_number_or_range(self):
         start = self.pos
@@ -215,10 +234,10 @@ class Lexer:
                 while self.pos < len(self.text) and self.text[self.pos].isdigit():
                     self.pos += 1
             value = self.text[start:self.pos]
-            self.tokens.append(Token('STRING', value))
+            self.tokens.append(_token(TOKEN_STRING, value))
         else:
             value = self.text[start:self.pos]
-            self.tokens.append(Token('NUMBER', value))
+            self.tokens.append(_token(TOKEN_NUMBER, value))
 
     def _read_cidr(self):
         start = self.pos
@@ -226,4 +245,4 @@ class Lexer:
         while self.pos < len(self.text) and (self.text[self.pos].isdigit() or self.text[self.pos] == '.'):
             self.pos += 1
         value = self.text[start:self.pos]
-        self.tokens.append(Token('CIDR', value))
+        self.tokens.append(_token(TOKEN_CIDR, value))
