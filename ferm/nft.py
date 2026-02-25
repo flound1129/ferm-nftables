@@ -37,7 +37,9 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
         proto = rule.protocol
         if proto.startswith('!'):
             parts.append(f"ip protocol != {proto[1:]}")
-        elif proto.lower() not in ('tcp', 'udp', 'icmp'):
+        elif proto.lower() in ('tcp', 'udp'):
+            parts.append(f"{proto}")
+        elif proto.lower() != 'icmp':
             parts.append(f"ip protocol {proto}")
     
     if rule.source:
@@ -76,6 +78,9 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
             parts.append(f"dport != {dport[1:]}")
         else:
             parts.append(f"dport {dport}")
+    
+    if rule.protocol and rule.protocol.lower() == 'icmp' and not rule.icmp_type:
+        parts.append("icmp")
     
     if rule.icmp_type:
         icmp = rule.icmp_type
