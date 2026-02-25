@@ -730,78 +730,41 @@ class Parser:
     def _parse_rule_element(self, keyword: str):
         keyword_upper = keyword.upper()
         
-        if keyword_upper == 'DOMAIN' or keyword_upper in ('IP', 'IP6'):
-            self._parse_domain(keyword_upper)
-            return
+        dispatch = {
+            'DOMAIN': lambda: self._parse_domain(keyword_upper),
+            'IP': lambda: self._parse_domain(keyword_upper),
+            'IP6': lambda: self._parse_domain(keyword_upper),
+            'INTERFACE': self._parse_interface,
+            'OUTERFACE': self._parse_outerface,
+            'PROTO': self._parse_proto,
+            'SADDR': self._parse_saddr,
+            'DADDR': self._parse_daddr,
+            'SPORT': self._parse_sport,
+            'DPORT': self._parse_dport,
+            'ICMP-TYPE': self._parse_icmp_type,
+            'FRAGMENT': self._parse_fragment,
+            'MOD': self._parse_module,
+            'MODULE': self._parse_module,
+            'LOG': self._parse_log,
+            'LIMIT': self._parse_limit,
+            'STATE': self._parse_state,
+            'CTSTATE': self._parse_state,
+            'MARK': self._parse_mark,
+            'TOS': self._parse_tos,
+            'TTL': self._parse_ttl,
+        }
         
-        if keyword_upper == 'INTERFACE':
-            self._parse_interface()
-            return
-        
-        if keyword_upper == 'OUTERFACE':
-            self._parse_outerface()
-            return
-        
-        if keyword_upper == 'PROTO':
-            self._parse_proto()
-            return
-        
-        if keyword_upper == 'SADDR':
-            self._parse_saddr()
-            return
-        
-        if keyword_upper == 'DADDR':
-            self._parse_daddr()
-            return
-        
-        if keyword_upper == 'SPORT':
-            self._parse_sport()
-            return
-        
-        if keyword_upper == 'DPORT':
-            self._parse_dport()
-            return
-        
-        if keyword_upper == 'ICMP-TYPE':
-            self._parse_icmp_type()
-            return
-        
-        if keyword_upper == 'FRAGMENT':
-            self.current_rule.fragment = True
-            self.current_rule.has_rule = True
-            return
-        
-        if keyword_upper == 'MOD' or keyword_upper == 'MODULE':
-            self._parse_module()
-            return
-        
-        if keyword_upper == 'LOG':
-            self._parse_log()
-            return
-        
-        if keyword_upper == 'LIMIT':
-            self._parse_limit()
-            return
-        
-        if keyword_upper == 'STATE' or keyword_upper == 'CTSTATE':
-            self._parse_state()
-            return
-        
-        if keyword_upper == 'MARK':
-            self._parse_mark()
-            return
-        
-        if keyword_upper == 'TOS':
-            self._parse_tos()
-            return
-        
-        if keyword_upper == 'TTL':
-            self._parse_ttl()
+        if keyword_upper in dispatch:
+            dispatch[keyword_upper]()
             return
         
         if keyword_upper in BUILTIN_TARGETS or keyword_upper in TARGET_DEFS.get(self.current_domain, {}):
             self._parse_target(keyword_upper)
             return
+
+    def _parse_fragment(self):
+        self.current_rule.fragment = True
+        self.current_rule.has_rule = True
 
     def _parse_domain(self, domain: str):
         self.current_domain = 'ip'
