@@ -809,157 +809,115 @@ class Parser:
         self.current_rule.domain_family = 'inet'
 
     def _parse_interface(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        interface = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        interface = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('interface')
         
-        self.current_rule.interface = ('!' if negated else '') + interface
+        self.current_rule.interface = prefix + interface
         self.current_rule.has_rule = True
 
     def _parse_outerface(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        interface = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        interface = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('outerface')
         
-        self.current_rule.outer_interface = ('!' if negated else '') + interface
+        self.current_rule.outer_interface = prefix + interface
         self.current_rule.has_rule = True
 
     def _parse_proto(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        proto = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        proto = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('protocol')
         
-        self.current_rule.protocol = ('!' if negated else '') + proto
+        self.current_rule.protocol = prefix + proto
         self.current_rule.has_rule = True
 
     def _parse_saddr(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
+        negated, prefix = self._parse_negation()
         
-        token = self.current_token()
-        if token and token.type == 'DOLLAR':
-            self.advance()
-            var_token = self.expect('STRING')
-            addr = self._resolve_var('$' + var_token.value)
-        else:
-            addr = self.expect('STRING').value
-            addr = self._resolve_var(addr)
+        addr = self._parse_address_or_var()
         
         if negated:
             self.current_rule.negated.add('saddr')
         
-        self.current_rule.source = ('!' if negated else '') + format_ip_or_cidr(addr)
+        self.current_rule.source = prefix + format_ip_or_cidr(addr)
         self.current_rule.has_rule = True
 
     def _parse_daddr(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
+        negated, prefix = self._parse_negation()
         
-        token = self.current_token()
-        if token and token.type == 'DOLLAR':
-            self.advance()
-            var_token = self.expect('STRING')
-            addr = self._resolve_var('$' + var_token.value)
-        else:
-            addr = self.expect('STRING').value
-            addr = self._resolve_var(addr)
+        addr = self._parse_address_or_var()
         
         if negated:
             self.current_rule.negated.add('daddr')
         
-        self.current_rule.dest = ('!' if negated else '') + format_ip_or_cidr(addr)
+        self.current_rule.dest = prefix + format_ip_or_cidr(addr)
         self.current_rule.has_rule = True
 
-    def _parse_sport(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
+    def _parse_address_or_var(self) -> str:
         token = self.current_token()
-        if token and token.type == 'LPAREN':
+        if token and token.type == TOKEN_DOLLAR:
             self.advance()
-            ports = []
-            while self.current_token() and self.current_token().type != 'RPAREN':
-                tok = self.advance()
-                if tok and tok.type in ('STRING', 'NUMBER'):
-                    ports.append(tok.value)
-            self.expect('RPAREN')
-            sport = '(' + ' '.join(ports) + ')'
-        elif token and token.type == 'DOLLAR':
-            self.advance()
-            var_token = self.expect('STRING')
-            sport = '$' + var_token.value
-            sport = self._resolve_var(sport)
-        elif token and token.type == 'NUMBER':
-            sport = self.advance().value
-        else:
-            sport = self.expect('STRING').value
+            var_token = self.expect(TOKEN_STRING)
+            return self._resolve_var('$' + var_token.value)
+        addr = self.expect(TOKEN_STRING).value
+        return self._resolve_var(addr)
+
+    def _parse_sport(self):
+        negated, prefix = self._parse_negation()
+        port = self._parse_port_or_var()
         
         if negated:
             self.current_rule.negated.add('sport')
         
-        self.current_rule.sport = ('!' if negated else '') + str(sport)
+        self.current_rule.sport = prefix + str(port)
         self.current_rule.has_rule = True
 
     def _parse_dport(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        token = self.current_token()
-        if token and token.type == 'LPAREN':
-            self.advance()
-            ports = []
-            while self.current_token() and self.current_token().type != 'RPAREN':
-                tok = self.advance()
-                if tok and tok.type in ('STRING', 'NUMBER'):
-                    ports.append(tok.value)
-            self.expect('RPAREN')
-            dport = '(' + ' '.join(ports) + ')'
-        elif token and token.type == 'DOLLAR':
-            self.advance()
-            var_token = self.expect('STRING')
-            dport = '$' + var_token.value
-            dport = self._resolve_var(dport)
-        elif token and token.type == 'NUMBER':
-            dport = self.advance().value
-        else:
-            dport = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        port = self._parse_port_or_var()
         
         if negated:
             self.current_rule.negated.add('dport')
         
-        self.current_rule.dport = ('!' if negated else '') + str(dport)
+        self.current_rule.dport = prefix + str(port)
         self.current_rule.has_rule = True
 
+    def _parse_port_or_var(self):
+        token = self.current_token()
+        if token and token.type == TOKEN_LPAREN:
+            self.advance()
+            ports = []
+            while self.current_token() and self.current_token().type != TOKEN_RPAREN:
+                tok = self.advance()
+                if tok and tok.type in (TOKEN_STRING, TOKEN_NUMBER):
+                    ports.append(tok.value)
+            self.expect(TOKEN_RPAREN)
+            return '(' + ' '.join(ports) + ')'
+        elif token and token.type == TOKEN_DOLLAR:
+            self.advance()
+            var_token = self.expect(TOKEN_STRING)
+            port = '$' + var_token.value
+            return self._resolve_var(port)
+        elif token and token.type == TOKEN_NUMBER:
+            return self.advance().value
+        else:
+            return self.expect(TOKEN_STRING).value
+
     def _parse_icmp_type(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        icmp_type = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        icmp_type = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('icmp_type')
         
-        self.current_rule.icmp_type = ('!' if negated else '') + icmp_type
+        self.current_rule.icmp_type = prefix + icmp_type
         self.current_rule.has_rule = True
 
     def _parse_module(self):
@@ -1001,19 +959,17 @@ class Parser:
                 self.current_rule.limit_burst = self.expect('STRING').value
 
     def _parse_state(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
+        negated, prefix = self._parse_negation()
         
         state_values = []
         
-        if self.current_token() and self.current_token().type == 'LPAREN':
+        if self.current_token() and self.current_token().type == TOKEN_LPAREN:
             self.advance()
-            while self.current_token() and self.current_token().type != 'RPAREN':
+            while self.current_token() and self.current_token().type != TOKEN_RPAREN:
                 token = self.advance()
                 if token:
                     state_values.append(token.value)
-            self.expect('RPAREN')
+            self.expect(TOKEN_RPAREN)
         else:
             token = self.advance()
             if token:
@@ -1022,54 +978,45 @@ class Parser:
         if negated:
             self.current_rule.negated.add('ctstate')
         
-        self.current_rule.ctstate = ('!' if negated else '') + ','.join(state_values)
+        self.current_rule.ctstate = prefix + ','.join(state_values)
         self.current_rule.has_rule = True
 
     def _parse_mark(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        mark = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        mark = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('mark')
         
-        self.current_rule.mark = ('!' if negated else '') + mark
+        self.current_rule.mark = prefix + mark
         self.current_rule.has_rule = True
 
     def _parse_tos(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        tos = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        tos = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('tos')
         
-        self.current_rule.tos = ('!' if negated else '') + tos
+        self.current_rule.tos = prefix + tos
         self.current_rule.has_rule = True
 
     def _parse_ttl(self):
-        negated = False
-        if self.consume('!'):
-            negated = True
-        
-        ttl = self.expect('STRING').value
+        negated, prefix = self._parse_negation()
+        ttl = self.expect(TOKEN_STRING).value
         
         if negated:
             self.current_rule.negated.add('ttl')
         
-        self.current_rule.ttl = ('!' if negated else '') + ttl
+        self.current_rule.ttl = prefix + ttl
         self.current_rule.has_rule = True
 
     def _parse_target(self, target: str):
         self.current_rule.target = target
         self.current_rule.has_action = True
         
-        while self.current_token() and self.current_token().type == 'STRING':
+        while self.current_token() and self.current_token().type == TOKEN_STRING:
             opt = self.advance().value
-            if self.current_token() and self.current_token().type == 'STRING':
+            if self.current_token() and self.current_token().type == TOKEN_STRING:
                 val = self.advance().value
                 self.current_rule.target_options.extend([opt, val])
