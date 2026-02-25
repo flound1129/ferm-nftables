@@ -48,6 +48,10 @@ docker run --rm --net=host \
         
         cp debian/ferm-nftables.service pkg/lib/systemd/system/ferm.service
         
+        # Install postinst script
+        cp debian/ferm-nftables.postinst pkg/DEBIAN/postinst
+        chmod +x pkg/DEBIAN/postinst
+        
         # Install default config
         mkdir -p pkg/etc/ferm
         cp debian/ferm.conf pkg/etc/ferm/ferm.conf

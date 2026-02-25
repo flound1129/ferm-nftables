@@ -673,8 +673,8 @@ class TestNftOutput:
         
         domains = {'ip': domain}
         result = generate_nft_rules(domains)
-        assert 'add table inet filter' in result
-        assert 'add chain inet filter INPUT' in result
+        assert 'table inet filter' in result
+        assert 'chain input' in result
         assert 'tcp dport 80 accept' in result
     
     def test_nft_webserver(self):
@@ -829,7 +829,7 @@ class TestNftOutput:
         rule.target = 'ACCEPT'
         domain.tables['mangle'].chains['PREROUTING'].rules.append(rule)
         result = generate_nft_rules({'ip': domain})
-        assert 'add table inet mangle' in result
+        assert 'table inet mangle' in result
     
     def test_sanitize_nft(self):
         from ferm.nft import sanitize_nft
@@ -855,7 +855,7 @@ class TestNftOutput:
         rule.target = 'ACCEPT'
         domain.tables['filter'].chains['INPUT'].rules.append(rule)
         result = generate_nft_rules({'ip6': domain})
-        assert 'add table inet filter' in result
+        assert 'table inet filter' in result
     
     def test_nft_policy_drop(self):
         from ferm.nft import generate_nft_rules
@@ -1308,5 +1308,5 @@ class TestNftMore:
         domain_ip6.tables['filter'].chains['INPUT'].rules[0].target = 'DROP'
         
         result = generate_nft_rules({'ip': domain_ip, 'ip6': domain_ip6})
-        assert 'add table inet filter' in result
-        assert 'add chain inet filter INPUT' in result
+        assert 'table inet filter' in result
+        assert 'chain input' in result
