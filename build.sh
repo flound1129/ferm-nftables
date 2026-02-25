@@ -41,7 +41,6 @@ docker run --rm --net=host \
         # Create wrapper script
         mkdir -p pkg/usr/bin
         cp ferm-wrapper.py pkg/usr/bin/ferm
-        rm ferm-wrapper.py
         chmod +x pkg/usr/bin/ferm
         
         cp debian/ferm.1 pkg/usr/share/man/man1/
