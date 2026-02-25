@@ -659,6 +659,48 @@ class TestExamples:
         f.apply()
 
 
+class TestGentooNftExamples:
+    def test_basic_routing_firewall(self):
+        f = Ferm()
+        f.load_config('tests/examples/basic_routing_firewall.ferm')
+        f.lines = True
+        f.noexec = True
+        f.use_nft = True
+        f.apply()
+    
+    def test_basic_nat(self):
+        f = Ferm()
+        f.load_config('tests/examples/basic_nat.ferm')
+        f.lines = True
+        f.noexec = True
+        f.use_nft = True
+        f.apply()
+    
+    def test_workstation_separate(self):
+        f = Ferm()
+        f.load_config('tests/examples/workstation_separate.ferm')
+        f.lines = True
+        f.noexec = True
+        f.use_nft = True
+        f.apply()
+    
+    def test_workstation_combined(self):
+        f = Ferm()
+        f.load_config('tests/examples/workstation_combined.ferm')
+        f.lines = True
+        f.noexec = True
+        f.use_nft = True
+        f.apply()
+    
+    def test_stateful_router(self):
+        f = Ferm()
+        f.load_config('tests/examples/stateful_router.ferm')
+        f.lines = True
+        f.noexec = True
+        f.use_nft = True
+        f.apply()
+
+
 class TestNftOutput:
     def test_generate_nft_basic(self):
         domain = Domain('ip')

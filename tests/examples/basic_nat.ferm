@@ -1,0 +1,14 @@
+# Basic NAT (Gentoo nftables examples)
+# Translated to ferm format
+
+table nat {
+    chain PREROUTING {
+        policy ACCEPT;
+    }
+
+    # for all packets to WAN, after routing, replace source address with primary IP of WAN interface
+    chain POSTROUTING {
+        policy ACCEPT;
+        outerface wan0 MASQUERADE;
+    }
+}

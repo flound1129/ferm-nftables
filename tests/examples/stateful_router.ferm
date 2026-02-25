@@ -1,0 +1,60 @@
+# Stateful router example (Gentoo nftables examples)
+# Simplified version - Translated to ferm format
+
+# ----- IPv4 Filter -----
+domain ip;
+table filter {
+    chain INPUT {
+        interface ppp0 saddr "121.12.242.43" DROP;
+        
+        # Drop invalid
+        mod state state INVALID DROP;
+        
+        # Accept loopback
+        interface lo ACCEPT;
+        
+        # Accept new connections from LANs
+        interface enp2s0 saddr "10.52.0.0/14" mod state state NEW ACCEPT;
+        interface enp3s6 saddr "192.168.1.0/24" mod state state NEW ACCEPT;
+        
+        # Accept torrent ports
+        proto tcp dport (55413 55414 4949) mod state state NEW ACCEPT;
+        proto udp dport (55413 55414 4949) mod state state NEW ACCEPT;
+        
+        # Accept HTTP from WAN for new connections
+        interface ppp0 proto tcp dport 80 mod state state NEW ACCEPT;
+        
+        # Accept established/related
+        mod state state (ESTABLISHED RELATED) ACCEPT;
+        
+        policy DROP;
+    }
+
+    chain FORWARD {
+        # Port forwarding: torrent from WAN to LAN
+        interface ppp0 proto tcp dport 55413 DNAT to "192.168.1.10:55413";
+        
+        # Forward established/related
+        mod state state (ESTABLISHED RELATED) ACCEPT;
+        
+        policy DROP;
+    }
+
+    chain OUTPUT {
+        policy ACCEPT;
+    }
+}
+
+# ----- IPv4 NAT -----
+domain ip;
+table nat {
+    chain PREROUTING {
+        # torrent port forwarding example
+        interface ppp0 proto tcp dport 55413 DNAT to "192.168.1.10:55413";
+    }
+
+    chain POSTROUTING {
+        # Masquerade for WAN
+        outerface ppp0 saddr "192.168.1.0/24" MASQUERADE;
+    }
+}

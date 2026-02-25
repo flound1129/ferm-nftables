@@ -1,0 +1,23 @@
+# Basic routing firewall (Gentoo nftables examples)
+# Translated to ferm format
+
+table filter {
+    # allow all packets sent by the firewall machine itself
+    chain OUTPUT {
+        policy ACCEPT;
+    }
+
+    # allow LAN to firewall, disallow WAN to firewall
+    chain INPUT {
+        policy ACCEPT;
+        interface lan0 ACCEPT;
+        interface wan0 DROP;
+    }
+
+    # allow packets from LAN to WAN, and WAN to LAN if LAN initiated the connection
+    chain FORWARD {
+        policy DROP;
+        interface lan0 outerface wan0 ACCEPT;
+        interface wan0 outerface lan0 mod state state (ESTABLISHED RELATED) ACCEPT;
+    }
+}

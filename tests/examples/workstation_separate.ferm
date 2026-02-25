@@ -1,0 +1,82 @@
+# Typical workstation (separate IPv4 and IPv6) (Gentoo nftables examples)
+# Translated to ferm format
+
+# ----- IPv4 -----
+domain ip;
+table filter {
+    chain INPUT {
+        policy DROP;
+
+        # early drop of invalid packets
+        mod state state INVALID DROP;
+
+        # accept all connections related to connections made by us
+        mod state state (ESTABLISHED RELATED) ACCEPT;
+
+        # drop connections to loopback not coming from loopback
+        interface ! lo saddr "127.0.0.1" DROP;
+
+        # accept loopback
+        interface lo ACCEPT;
+
+        # accept all ICMP types
+        proto icmp ACCEPT;
+
+        # IPv4 mDNS
+        proto udp dport mdns saddr "224.0.0.251" ACCEPT;
+
+        # accept SSH
+        proto tcp dport ssh ACCEPT;
+    }
+
+    chain FORWARD {
+        policy DROP;
+    }
+
+    chain OUTPUT {
+        policy ACCEPT;
+    }
+}
+
+
+# ----- IPv6 -----
+domain ip6;
+table filter {
+    chain INPUT {
+        policy DROP;
+
+        # accept all connections related to connections made by us
+        mod state state (ESTABLISHED RELATED) ACCEPT;
+
+        # accept neighbor discovery
+        proto ipv6-icmp icmp-type nd-neighbor-solicit ACCEPT;
+        proto ipv6-icmp icmp-type nd-router-advert ACCEPT;
+        proto ipv6-icmp icmp-type nd-neighbor-advert ACCEPT;
+
+        # early drop of invalid packets
+        mod state state INVALID DROP;
+
+        # drop connections to loopback not coming from loopback
+        interface ! lo saddr "::1" DROP;
+
+        # accept loopback
+        interface lo ACCEPT;
+
+        # accept all ICMP types
+        proto ipv6-icmp ACCEPT;
+
+        # IPv6 mDNS
+        proto udp dport mdns saddr "ff02::fb" ACCEPT;
+
+        # accept SSH
+        proto tcp dport ssh ACCEPT;
+    }
+
+    chain FORWARD {
+        policy DROP;
+    }
+
+    chain OUTPUT {
+        policy ACCEPT;
+    }
+}

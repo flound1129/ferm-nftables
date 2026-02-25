@@ -61,7 +61,7 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
         sport = rule.sport
         if sport.startswith('(') and sport.endswith(')'):
             ports = sport[1:-1].split()
-            parts.append(f"{{ sport {{ {', '.join(ports)} }} }}")
+            parts.append(f"sport {{ {', '.join(ports)} }}")
         elif sport.startswith('!'):
             parts.append(f"sport != {sport[1:]}")
         else:
@@ -71,7 +71,7 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
         dport = rule.dport
         if dport.startswith('(') and dport.endswith(')'):
             ports = dport[1:-1].split()
-            parts.append(f"{{ dport {{ {', '.join(ports)} }} }}")
+            parts.append(f"dport {{ {', '.join(ports)} }}")
         elif dport.startswith('!'):
             parts.append(f"dport != {dport[1:]}")
         else:
