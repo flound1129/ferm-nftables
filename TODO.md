@@ -30,7 +30,7 @@ Not working (need functions): antiddos, arptables, dmz_router, dsl_router, ebtab
 
 ### High Priority
 
-- [ ] **Functions** - `@def &func($arg) = {...}`
+- [x] **Functions** - `@def &func($arg) = {...}`
 - [ ] **DNS resolution** - `@resolve("hostname")`
 - [ ] **@include patterns** - Glob patterns in includes
 

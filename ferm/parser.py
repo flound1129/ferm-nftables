@@ -383,6 +383,8 @@ class Parser:
                 self._parse_rule_element(keyword)
         elif token.type == 'AT_KEYWORD':
             self._parse_at_keyword()
+        elif token.type == 'AMPERSAND':
+            self._parse_function_call()
         elif token.type == 'STRING':
             keyword = token.value.upper()
             self.advance()
@@ -453,6 +455,7 @@ class Parser:
     def _parse_at_keyword(self):
         token = self.current_token()
         keyword = token.value.lower()
+        self.advance()
 
         if keyword == '@def':
             self._parse_def()
@@ -500,12 +503,102 @@ class Parser:
         self.expect('EQUALS')
         
         func_body = []
-        while self.current_token() and self.current_token().type != 'SEMICOLON':
+        depth = 1
+        self.advance()
+        while self.current_token() and depth > 0:
+            token = self.current_token()
+            if token.type == 'LBRACE':
+                depth += 1
+            elif token.type == 'RBRACE':
+                depth -= 1
+                if depth == 0:
+                    self.advance()
+                    break
             func_body.append(self.advance())
         
         self.expect('SEMICOLON')
         
         self.functions[func_name] = {'params': params, 'body': func_body}
+
+    def _parse_function_call(self):
+        self.advance()
+        func_name = self.expect('STRING').value
+        self.expect('LPAREN')
+        
+        args = []
+        while self.current_token() and self.current_token().type != 'RPAREN':
+            args.append(self._parse_value())
+            if self.current_token() and self.current_token().type == 'COMMA':
+                self.advance()
+        
+        self.expect('RPAREN')
+        
+        if func_name not in self.functions:
+            raise FermError(f"Unknown function: &{func_name}", self.filename, self.current_line)
+        
+        func_def = self.functions[func_name]
+        params = func_def['params']
+        body = func_def['body']
+        
+        if len(args) != len(params):
+            raise FermError(f"Function &{func_name} expects {len(params)} arguments, got {len(args)}", self.filename, self.current_line)
+        
+        param_map = dict(zip(params, args))
+        
+        expanded = self._expand_function_body(body, param_map)
+        
+        self._recursion_depth += 1
+        if self._recursion_depth > self._max_recursion_depth:
+            raise FermError(f"Function recursion limit exceeded", self.filename, self.current_line)
+        
+        # Insert expanded tokens before current position (the SEMICOLON after function call)
+        # Then continue from where we were (which is now after the inserted tokens)
+        insert_pos = self.pos
+        for token in reversed(expanded):
+            self.tokens.insert(insert_pos, token)
+        
+        self._recursion_depth -= 1
+        
+        return ''
+
+    def _expand_function_body(self, body: List[Token], param_map: Dict[str, str]) -> List[Token]:
+        expanded = []
+        i = 0
+        while i < len(body):
+            token = body[i]
+            if token.type == 'DOLLAR':
+                if i + 1 < len(body) and body[i + 1].type == 'STRING':
+                    var_name = body[i + 1].value
+                    i += 1
+                    if var_name in param_map:
+                        expanded.append(Token('STRING', param_map[var_name], token.line))
+                    else:
+                        expanded.append(token)
+                        expanded.append(body[i])
+                else:
+                    var_name = token.value.lstrip('$')
+                    if var_name in param_map:
+                        expanded.append(Token('STRING', param_map[var_name], token.line))
+                    else:
+                        expanded.append(token)
+            elif token.type == 'AMPERSAND':
+                nested_func_name = body[i + 1].value if i + 1 < len(body) else ''
+                expanded.append(token)
+                expanded.append(Token('STRING', nested_func_name, self.current_line))
+                i += 1
+                if i + 1 < len(body) and body[i + 1].type == 'LPAREN':
+                    expanded.append(body[i + 1])
+                    i += 1
+                    while i < len(body) and body[i].type != 'RPAREN':
+                        expanded.append(body[i])
+                        i += 1
+                    if i < len(body):
+                        expanded.append(body[i])
+                        i += 1
+            else:
+                expanded.append(token)
+            i += 1
+        return expanded
 
     def _parse_include(self):
         while self.current_token() and self.current_token().type != 'SEMICOLON':
@@ -574,7 +667,7 @@ class Parser:
     def _parse_value(self):
         values = []
         
-        while self.current_token() and self.current_token().type in ('STRING', 'NUMBER', 'CIDR', 'LPAREN', 'NOT', 'DOLLAR'):
+        while self.current_token() and self.current_token().type in ('STRING', 'NUMBER', 'CIDR', 'LPAREN', 'NOT', 'DOLLAR', 'AMPERSAND'):
             token = self.advance()
             
             if token.type == 'LPAREN':
@@ -588,6 +681,9 @@ class Parser:
                 values.append(f'${var_name}')
             elif token.type == 'NOT':
                 values.append('!' + str(self._parse_value()))
+            elif token.type == 'AMPERSAND':
+                self._parse_function_call()
+                break
             else:
                 values.append(token.value)
         
