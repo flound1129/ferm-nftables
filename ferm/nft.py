@@ -87,9 +87,15 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
     if rule.ctstate:
         ctstate = rule.ctstate
         if ctstate.startswith('!'):
-            parts.append(f"ct state != {ctstate[1:]}")
+            ctstate_val = ctstate[1:]
         else:
-            parts.append(f"ct state {ctstate}")
+            ctstate_val = ctstate
+        if ctstate_val.startswith('(') and ctstate_val.endswith(')'):
+            ctstate_val = ctstate_val[1:-1].replace(' ', ',')
+        if ctstate.startswith('!'):
+            parts.append(f"ct state != {ctstate_val}")
+        else:
+            parts.append(f"ct state {ctstate_val}")
     
     if rule.mark:
         mark = rule.mark

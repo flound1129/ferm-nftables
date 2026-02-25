@@ -39,14 +39,9 @@ docker run --rm --net=host \
         cp -r ferm pkg/usr/lib/python3/dist-packages/
         
         # Create wrapper script
-        cat > pkg/usr/bin/ferm << EOF
-#!/usr/bin/python3
-import sys
-import os
-sys.path.insert(0, '/usr/lib/python3/dist-packages')
-from ferm.apply import main
-sys.exit(main())
-EOF
+        mkdir -p pkg/usr/bin
+        cp ferm-wrapper.py pkg/usr/bin/ferm
+        rm ferm-wrapper.py
         chmod +x pkg/usr/bin/ferm
         
         cp debian/ferm.1 pkg/usr/share/man/man1/
