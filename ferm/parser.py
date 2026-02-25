@@ -3,6 +3,23 @@ from typing import Any, Dict, List, Optional, Set
 from .lexer import FermError, Lexer, Token
 
 
+TOKEN_STRING = 'STRING'
+TOKEN_NUMBER = 'NUMBER'
+TOKEN_CIDR = 'CIDR'
+TOKEN_LPAREN = 'LPAREN'
+TOKEN_RPAREN = 'RPAREN'
+TOKEN_LBRACE = 'LBRACE'
+TOKEN_RBRACE = 'RBRACE'
+TOKEN_SEMICOLON = 'SEMICOLON'
+TOKEN_KEYWORD = 'KEYWORD'
+TOKEN_AT_KEYWORD = 'AT_KEYWORD'
+TOKEN_AMPERSAND = 'AMPERSAND'
+TOKEN_DOLLAR = 'DOLLAR'
+TOKEN_NOT = 'NOT'
+TOKEN_COMMA = 'COMMA'
+TOKEN_EQUALS = 'EQUALS'
+
+
 PROTO_DEFS = {
     'ip': {
         'tcp': {'dport': 1, 'sport': 1, 'tcp-flags': 's', 'flags': 's'},
@@ -302,13 +319,32 @@ class Parser:
 
     def consume(self, value: str) -> bool:
         token = self.current_token()
-        if token and token.type == 'STRING' and token.value.upper() == value.upper():
+        if token and token.type == TOKEN_STRING and token.value.upper() == value.upper():
             self.advance()
             return True
-        if value == '!' and token and token.type == 'NOT':
+        if value == '!' and token and token.type == TOKEN_NOT:
             self.advance()
             return True
         return False
+
+    def _parse_negation(self) -> tuple[bool, str]:
+        negated = self.consume('!')
+        prefix = '!' if negated else ''
+        return negated, prefix
+
+    def _parse_optional_string(self) -> Optional[str]:
+        token = self.current_token()
+        if token and token.type == TOKEN_STRING:
+            return self.advance().value
+        return None
+
+    def _parse_optional_dollar_var(self) -> Optional[str]:
+        token = self.current_token()
+        if token and token.type == TOKEN_DOLLAR:
+            self.advance()
+            var_token = self.expect(TOKEN_STRING)
+            return self._resolve_var('$' + var_token.value)
+        return None
 
     def parse(self):
         while self.current_token():
@@ -350,27 +386,27 @@ class Parser:
         if token is None:
             return
 
-        if token.type == 'SEMICOLON':
+        if token.type == TOKEN_SEMICOLON:
             self.advance()
             self._save_rule()
             return
 
-        if token.type == 'LBRACE':
+        if token.type == TOKEN_LBRACE:
             self._recursion_depth += 1
             if self._recursion_depth > self._max_recursion_depth:
                 raise FermError("Maximum nesting depth exceeded", self.filename, self.current_line)
             self.advance()
-            while not self.current_token() or self.current_token().type != 'RBRACE':
+            while not self.current_token() or self.current_token().type != TOKEN_RBRACE:
                 self._parse_statement()
             if self.current_token():
                 self.advance()
             self._recursion_depth -= 1
             return
 
-        if token.type == 'RBRACE':
+        if token.type == TOKEN_RBRACE:
             return
 
-        if token.type == 'KEYWORD':
+        if token.type == TOKEN_KEYWORD:
             keyword = token.value.upper()
             self.advance()
             if keyword == 'TABLE':
@@ -381,11 +417,11 @@ class Parser:
                 self._parse_policy()
             else:
                 self._parse_rule_element(keyword)
-        elif token.type == 'AT_KEYWORD':
+        elif token.type == TOKEN_AT_KEYWORD:
             self._parse_at_keyword()
-        elif token.type == 'AMPERSAND':
+        elif token.type == TOKEN_AMPERSAND:
             self._parse_function_call()
-        elif token.type == 'STRING':
+        elif token.type == TOKEN_STRING:
             keyword = token.value.upper()
             self.advance()
             self._parse_rule_element(keyword)
@@ -393,18 +429,18 @@ class Parser:
             self.advance()
 
     def _parse_table(self):
-        table_name = self.expect('STRING').value
+        table_name = self.expect(TOKEN_STRING).value
         self.current_table = table_name
 
         if not self.domains[self.current_domain].tables.get(table_name):
             self.domains[self.current_domain].tables[table_name] = Table(table_name)
 
         token = self.current_token()
-        if token and token.type == 'KEYWORD' and token.value == 'CHAIN':
+        if token and token.type == TOKEN_KEYWORD and token.value == 'CHAIN':
             self._parse_chain()
-        elif token and token.type == 'LBRACE':
+        elif token and token.type == TOKEN_LBRACE:
             self.advance()
-            while self.current_token() and self.current_token().type != 'RBRACE':
+            while self.current_token() and self.current_token().type != TOKEN_RBRACE:
                 self._parse_statement()
             if self.current_token():
                 self.advance()
@@ -412,7 +448,7 @@ class Parser:
     def _parse_chain(self):
         chain_name = None
         token = self.current_token()
-        if token and token.type == 'STRING':
+        if token and token.type == TOKEN_STRING:
             chain_name = self.advance().value
         
         if not chain_name:
