@@ -1,8 +1,25 @@
 #!/usr/bin/make -f
 
 %:
-	dh $@ --with python3
+	dh $@
 
 override_dh_install:
-	dh_install ferm-nftables.service etc/systemd/system/
+	# Install ferm Python package
+	mkdir -p debian/ferm-nftables/usr/lib/python3/dist-packages
+	cp -r ferm debian/ferm-nftables/usr/lib/python3/dist-packages/
+	
+	# Install wrapper script
+	mkdir -p debian/ferm-nftables/usr/bin
+	cp ferm-wrapper.py debian/ferm-nftables/usr/bin/ferm
+	chmod +x debian/ferm-nftables/usr/bin/ferm
+	
+	# Install man page
 	dh_install debian/ferm.1 usr/share/man/man1/
+	gzip -9 debian/ferm-nftables/usr/share/man/man1/ferm.1
+	
+	# Install systemd service
+	dh_install debian/ferm-nftables.service lib/systemd/system/
+	
+	# Install config file (debhelper auto-marks files in /etc as conffiles)
+	mkdir -p debian/ferm-nftables/etc/ferm
+	cp debian/ferm.conf debian/ferm-nftables/etc/ferm/ferm.conf

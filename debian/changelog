@@ -1,4 +1,4 @@
-ferm-nftables (1.0.0~1772038618+trixie) trixie; urgency=medium
+ferm-nftables (1.0.0~1772038938+trixie) trixie; urgency=medium
 
   * Initial release
   * Parses ferm syntax and generates iptables-nftables commands
