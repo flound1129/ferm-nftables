@@ -80,7 +80,7 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
             parts.append(f"dport {dport}")
     
     if rule.protocol and rule.protocol.lower() == 'icmp' and not rule.icmp_type:
-        parts.append("icmp")
+        pass  # icmp without type is not valid in inet tables
     
     if rule.icmp_type:
         icmp = rule.icmp_type
