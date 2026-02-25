@@ -61,7 +61,11 @@ class Ferm:
             proc = subprocess.Popen(['nft', '-f', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = proc.communicate(input=nft_output.encode())
             if proc.returncode != 0:
-                print(f"Error applying nft rules: {stderr.decode()}", file=sys.stderr)
+                try:
+                    err_msg = stderr.decode('utf-8', errors='replace')
+                except Exception:
+                    err_msg = '<binary error output>'
+                print(f"Error applying nft rules: {err_msg}", file=sys.stderr)
                 sys.exit(1)
         except Exception as e:
             print(f"Error applying nft rules: {e}", file=sys.stderr)

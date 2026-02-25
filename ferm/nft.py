@@ -209,7 +209,11 @@ def apply_nft_rules(dry_run: bool = False) -> bool:
         proc = subprocess.Popen(['nft', '-f', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate(input=content.encode())
         if proc.returncode != 0:
-            print(f"Error applying nft rules: {stderr.decode()}", file=sys.stderr)
+            try:
+                err_msg = stderr.decode('utf-8', errors='replace')
+            except Exception:
+                err_msg = '<binary error output>'
+            print(f"Error applying nft rules: {err_msg}", file=sys.stderr)
             return False
         return True
     except Exception as e:
