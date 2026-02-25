@@ -844,7 +844,7 @@ class TestNftOutput:
         rule.protocol = '!tcp'
         rule.target = 'ACCEPT'
         cmd = generate_nft_command(rule, 'INPUT')
-        assert 'meta protocol != tcp' in cmd
+        assert 'ip protocol != tcp' in cmd
     
     def test_nft_ip6(self):
         from ferm.nft import generate_nft_rules
@@ -1237,7 +1237,7 @@ class TestNftMore:
         rule.protocol = 'tcp'
         rule.target = 'ACCEPT'
         cmd = generate_nft_command(rule, 'INPUT')
-        assert 'meta protocol tcp' in cmd
+        assert 'tcp accept' in cmd
     
     def test_nft_sport(self):
         from ferm.nft import generate_nft_command
@@ -1253,7 +1253,7 @@ class TestNftMore:
         rule.ctstate = '!ESTABLISHED'
         rule.target = 'ACCEPT'
         cmd = generate_nft_command(rule, 'INPUT')
-        assert 'ct state != ESTABLISHED' in cmd
+        assert 'ct state != established' in cmd
     
     def test_nft_negated_mark(self):
         from ferm.nft import generate_nft_command
