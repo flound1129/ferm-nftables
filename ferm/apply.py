@@ -9,6 +9,8 @@ from .parser import Domain, Parser
 
 
 VERSION = "2.9"
+DEFAULT_CONFIG = '/etc/ferm/ferm.conf'
+NFT_COMMAND = ['nft', '-f', '-']
 
 
 class Ferm:
@@ -40,6 +42,10 @@ class Ferm:
         parser = Parser(tokens, filename, self.defines)
         parsed_domains = parser.parse()
         
+        self._merge_domains(parsed_domains)
+
+    def _merge_domains(self, parsed_domains):
+        """Merge parsed domains into main domain."""
         for domain_name, domain in parsed_domains.items():
             for table_name, table in domain.tables.items():
                 if table_name not in self.domain.tables:
@@ -48,8 +54,37 @@ class Ferm:
                     for chain_name, chain in table.chains.items():
                         self.domain.tables[table_name].chains[chain_name] = chain
 
+    def _generate_output(self) -> str:
+        """Generate nft rules output."""
+        return generate_nft_rules(self.domain)
+
+    def _apply_rules(self, nft_output: str):
+        """Apply nft rules."""
+        try:
+            proc = subprocess.Popen(NFT_COMMAND, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate(input=nft_output.encode())
+            if proc.returncode != 0:
+                self._handle_error(stderr)
+        except FileNotFoundError:
+            self._error_exit("nft command not found. Is nftables installed?")
+        except Exception as e:
+            self._error_exit(str(e))
+
+    def _handle_error(self, stderr: bytes):
+        """Handle nft error output."""
+        try:
+            err_msg = stderr.decode('utf-8', errors='replace')
+        except Exception:
+            err_msg = '<binary error output>'
+        self._error_exit(f"Error applying nft rules: {err_msg}")
+
+    def _error_exit(self, message: str):
+        """Print error and exit."""
+        print(message, file=sys.stderr)
+        sys.exit(1)
+
     def apply(self):
-        nft_output = generate_nft_rules(self.domain)
+        nft_output = self._generate_output()
         
         if self.lines:
             print(nft_output)
@@ -57,35 +92,19 @@ class Ferm:
         if self.noexec:
             return
         
-        try:
-            proc = subprocess.Popen(['nft', '-f', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = proc.communicate(input=nft_output.encode())
-            if proc.returncode != 0:
-                try:
-                    err_msg = stderr.decode('utf-8', errors='replace')
-                except Exception:
-                    err_msg = '<binary error output>'
-                print(f"Error applying nft rules: {err_msg}", file=sys.stderr)
-                sys.exit(1)
-        except Exception as e:
-            print(f"Error applying nft rules: {e}", file=sys.stderr)
-            sys.exit(1)
+        self._apply_rules(nft_output)
 
     def show_lines(self):
-        nft_output = generate_nft_rules(self.domain)
+        nft_output = self._generate_output()
         print(nft_output)
 
 
-def main():
-    if os.geteuid() != 0:
-        print("Error: ferm-nftables must be run as root", file=sys.stderr)
-        sys.exit(1)
-    
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='ferm-nftables - ferm syntax for nftables'
     )
-    parser.add_argument('config', nargs='*', default=['/etc/ferm/ferm.conf'],
-                        help='Configuration files (default: /etc/ferm/ferm.conf)')
+    parser.add_argument('config', nargs='*', default=[DEFAULT_CONFIG],
+                        help=f'Configuration files (default: {DEFAULT_CONFIG})')
     parser.add_argument('-n', '--noexec', action='store_true',
                         help='Do not execute, just show what would be done')
     parser.add_argument('-l', '--lines', action='store_true',
@@ -95,9 +114,32 @@ def main():
     parser.add_argument('-V', '--version', action='version', version=f'ferm-nftables {VERSION}')
     parser.add_argument('-d', '--def', dest='defines', action='append', default=[],
                         help='Override a variable (e.g., "$name=value")')
+    return parser.parse_args()
 
-    args = parser.parse_args()
 
+def _check_root():
+    if os.geteuid() != 0:
+        print("Error: ferm-nftables must be run as root", file=sys.stderr)
+        sys.exit(1)
+
+
+def _load_configs(ferm: Ferm, config_files: list):
+    for config_file in config_files:
+        if os.path.exists(config_file):
+            try:
+                ferm.load_config(config_file)
+            except FermError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif config_file != DEFAULT_CONFIG:
+            print(f"Warning: Config file not found: {config_file}", file=sys.stderr)
+
+
+def main():
+    _check_root()
+    
+    args = _parse_args()
+    
     ferm = Ferm()
     ferm.noexec = args.noexec
     ferm.lines = args.lines
@@ -107,15 +149,7 @@ def main():
             key, value = define.split('=', 1)
             ferm.defines[key] = value
 
-    for config_file in args.config:
-        if os.path.exists(config_file):
-            try:
-                ferm.load_config(config_file)
-            except FermError as e:
-                print(f"Error: {e}", file=sys.stderr)
-                sys.exit(1)
-        elif config_file != '/etc/ferm/ferm.conf':
-            print(f"Warning: Config file not found: {config_file}", file=sys.stderr)
+    _load_configs(ferm, args.config)
 
     if args.remote:
         ferm.noexec = True
