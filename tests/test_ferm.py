@@ -1311,7 +1311,7 @@ class TestNftMore:
         rule.tos = '!0x05'
         rule.target = 'ACCEPT'
         cmd = generate_nft_command(rule, 'INPUT')
-        assert 'meta mark != 0x05' in cmd
+        assert 'meta tos != 0x05' in cmd
     
     def test_nft_match_modules(self):
         from ferm.nft import generate_nft_command

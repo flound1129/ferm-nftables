@@ -3,6 +3,9 @@ from .parser import Domain, Rule
 
 VERSION = "2.9"
 
+PROTO_TCP_UDP = ('tcp', 'udp')
+PROTO_ICMP = 'icmp'
+
 
 def sanitize_nft(value: str) -> str:
     """Sanitize values to prevent injection."""
@@ -13,115 +16,164 @@ def sanitize_nft(value: str) -> str:
     return value
 
 
+def _format_negated(value: str, nft_prefix: str) -> str:
+    """Format a possibly negated value with nft syntax."""
+    if value.startswith('!'):
+        return f"{nft_prefix} != {value[1:]}"
+    return f"{nft_prefix} {value}"
+
+
+def _format_ports(ports: str) -> str:
+    """Format port list for nftables."""
+    if ports.startswith('(') and ports.endswith(')'):
+        port_list = ports[1:-1].split()
+        return f"{{ {', '.join(port_list)} }}"
+    return ports
+
+
+def _parse_negated(value: str) -> tuple[str, bool]:
+    """Parse negated value, returns (actual_value, is_negated)."""
+    if value.startswith('!'):
+        return value[1:], True
+    return value, False
+
+
+def _format_log_target(rule: Rule, base: str) -> list[str]:
+    """Format LOG target."""
+    parts = [base]
+    if rule.log_prefix:
+        parts.append(f'prefix "{rule.log_prefix}"')
+    if rule.log_level:
+        parts.append(f'level {rule.log_level}')
+    return parts
+
+
+def _format_mark_target(rule: Rule, base: str) -> list[str]:
+    """Format MARK target."""
+    mark_value = None
+    for i, opt in enumerate(rule.target_options):
+        if opt.lower() == 'set-mark' and i + 1 < len(rule.target_options):
+            mark_value = rule.target_options[i + 1]
+            break
+    if mark_value:
+        return [f"{base} {mark_value}"]
+    return [base]
+
+
+TARGET_MAP = {
+    'LOG': ('log', _format_log_target),
+    'ACCEPT': ('accept', None),
+    'DROP': ('drop', None),
+    'REJECT': ('reject', None),
+    'RETURN': ('return', None),
+    'MASQUERADE': ('masquerade', None),
+    'SNAT': ('nat snat', None),
+    'DNAT': ('nat dnat', None),
+    'REDIRECT': ('redirect', None),
+    'MARK': ('meta mark set', _format_mark_target),
+}
+
+
+def _format_target(rule: Rule) -> list[str]:
+    """Format the target part of a rule."""
+    target = rule.target
+    
+    if target in TARGET_MAP:
+        nft_target, formatter = TARGET_MAP[target]
+        if formatter:
+            return formatter(rule, nft_target)
+        return [nft_target]
+    
+    # Default: jump to chain
+    return [f"jump {target}"]
+
+
 def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter") -> str:
     """Generate a single nft rule command."""
     parts = []
     
+    # Interface
     if rule.interface:
         iface = rule.interface
-        if iface.startswith('!'):
-            parts.append(f"iif != {iface[1:]}")
-        else:
-            parts.append(f"iif {iface}")
+        value, negated = _parse_negated(iface)
+        prefix = "iif" if not negated else "iif !="
+        parts.append(f"{prefix} {value}")
     
     if rule.outer_interface:
         iface = rule.outer_interface
-        if iface.startswith('!'):
-            parts.append(f"oif != {iface[1:]}")
-        else:
-            parts.append(f"oif {iface}")
+        value, negated = _parse_negated(iface)
+        prefix = "oif" if not negated else "oif !="
+        parts.append(f"{prefix} {value}")
     
+    # Protocol
     if rule.protocol:
         proto = rule.protocol
-        if proto.startswith('!'):
-            parts.append(f"ip protocol != {proto[1:]}")
-        elif proto.lower() in ('tcp', 'udp'):
-            parts.append(f"{proto}")
-        elif proto.lower() != 'icmp':
-            parts.append(f"ip protocol {proto}")
+        value, negated = _parse_negated(proto)
+        if negated:
+            parts.append(f"ip protocol != {value}")
+        elif value.lower() in PROTO_TCP_UDP:
+            parts.append(f"{value}")
+        elif value.lower() != PROTO_ICMP:
+            parts.append(f"ip protocol {value}")
     
+    # Source/Dest
     if rule.source:
-        src = rule.source
-        if src.startswith('!'):
-            parts.append(f"ip saddr != {src[1:]}")
-        else:
-            parts.append(f"ip saddr {src}")
+        parts.append(_format_negated(rule.source, "ip saddr"))
     
     if rule.dest:
-        dst = rule.dest
-        if dst.startswith('!'):
-            parts.append(f"ip daddr != {dst[1:]}")
-        else:
-            parts.append(f"ip daddr {dst}")
+        parts.append(_format_negated(rule.dest, "ip daddr"))
     
     if rule.fragment:
         parts.append("frag more-fragments")
     
+    # Ports
     if rule.sport:
-        sport = rule.sport
-        if sport.startswith('(') and sport.endswith(')'):
-            ports = sport[1:-1].split()
-            parts.append(f"sport {{ {', '.join(ports)} }}")
-        elif sport.startswith('!'):
-            parts.append(f"sport != {sport[1:]}")
+        value, negated = _parse_negated(rule.sport)
+        prefix = "sport" if not negated else "sport !"
+        if value.startswith('(') and value.endswith(')'):
+            parts.append(f"sport {_format_ports(value)}")
         else:
-            parts.append(f"sport {sport}")
+            parts.append(f"{prefix} {value}")
     
     if rule.dport:
-        dport = rule.dport
-        if dport.startswith('(') and dport.endswith(')'):
-            ports = dport[1:-1].split()
-            parts.append(f"dport {{ {', '.join(ports)} }}")
-        elif dport.startswith('!'):
-            parts.append(f"dport != {dport[1:]}")
+        value, negated = _parse_negated(rule.dport)
+        prefix = "dport" if not negated else "dport !"
+        if value.startswith('(') and value.endswith(')'):
+            parts.append(f"dport {_format_ports(value)}")
         else:
-            parts.append(f"dport {dport}")
+            parts.append(f"{prefix} {value}")
     
-    if rule.protocol and rule.protocol.lower() == 'icmp' and not rule.icmp_type:
-        pass  # icmp without type is not valid in inet tables
+    # ICMP - icmp without type is not valid in inet tables
+    if rule.protocol and rule.protocol.lower() == PROTO_ICMP and not rule.icmp_type:
+        pass
     
     if rule.icmp_type:
-        icmp = rule.icmp_type
-        if icmp.startswith('!'):
-            parts.append(f"icmp type != {icmp[1:]}")
-        else:
-            parts.append(f"icmp type {icmp}")
+        parts.append(_format_negated(rule.icmp_type, "icmp type"))
     
+    # Connection tracking
     if rule.ctstate:
-        ctstate = rule.ctstate
-        if ctstate.startswith('!'):
-            ctstate_val = ctstate[1:]
+        ctstate, negated = _parse_negated(rule.ctstate)
+        if ctstate.startswith('(') and ctstate.endswith(')'):
+            ctstate = ctstate[1:-1].replace(' ', ',')
+        ctstate = ctstate.lower()
+        if negated:
+            parts.append(f"ct state != {ctstate}")
         else:
-            ctstate_val = ctstate
-        if ctstate_val.startswith('(') and ctstate_val.endswith(')'):
-            ctstate_val = ctstate_val[1:-1].replace(' ', ',')
-        ctstate_val = ctstate_val.lower()
-        if ctstate.startswith('!'):
-            parts.append(f"ct state != {ctstate_val}")
-        else:
-            parts.append(f"ct state {ctstate_val}")
+            parts.append(f"ct state {ctstate}")
     
+    # Mark
     if rule.mark:
-        mark = rule.mark
-        if mark.startswith('!'):
-            parts.append(f"mark != {mark[1:]}")
-        else:
-            parts.append(f"mark {mark}")
+        parts.append(_format_negated(rule.mark, "mark"))
     
+    # TOS
     if rule.tos:
-        tos = rule.tos
-        if tos.startswith('!'):
-            parts.append(f"meta mark != {tos[1:]}")
-        else:
-            parts.append(f"meta tos {tos}")
+        parts.append(_format_negated(rule.tos, "meta tos"))
     
+    # TTL
     if rule.ttl:
-        ttl = rule.ttl
-        if ttl.startswith('!'):
-            parts.append(f"meta ttl != {ttl[1:]}")
-        else:
-            parts.append(f"meta ttl {ttl}")
+        parts.append(_format_negated(rule.ttl, "meta ttl"))
     
+    # Modules
     for module, options in rule.match_modules.items():
         if module == 'state':
             module = 'conntrack'
@@ -136,42 +188,39 @@ def generate_nft_command(rule: Rule, chain_name: str, table_name: str = "filter"
             nft_key = key.replace('_', ' ')
             parts.append(f"{module} {nft_key} {value}")
     
+    # Target
     if rule.target:
-        target = rule.target
-        if target == 'LOG':
-            parts.append("log")
-            if rule.log_prefix:
-                parts.append(f'prefix "{rule.log_prefix}"')
-            if rule.log_level:
-                parts.append(f'level {rule.log_level}')
-        elif target == 'ACCEPT':
-            parts.append("accept")
-        elif target == 'DROP':
-            parts.append("drop")
-        elif target == 'REJECT':
-            parts.append("reject")
-        elif target == 'RETURN':
-            parts.append("return")
-        elif target == 'MASQUERADE':
-            parts.append("masquerade")
-        elif target == 'SNAT':
-            parts.append("nat snat")
-        elif target == 'DNAT':
-            parts.append("nat dnat")
-        elif target == 'REDIRECT':
-            parts.append("redirect")
-        elif target == 'MARK':
-            mark_value = None
-            for i, opt in enumerate(rule.target_options):
-                if opt.lower() == 'set-mark' and i + 1 < len(rule.target_options):
-                    mark_value = rule.target_options[i + 1]
-                    break
-            if mark_value:
-                parts.append(f"meta mark set {mark_value}")
-        else:
-            parts.append(f"jump {target}")
+        parts.extend(_format_target(rule))
     
     return ' '.join(parts)
+
+
+TARGET_MAP = {
+    'LOG': ('log', _format_log_target),
+    'ACCEPT': ('accept', None),
+    'DROP': ('drop', None),
+    'REJECT': ('reject', None),
+    'RETURN': ('return', None),
+    'MASQUERADE': ('masquerade', None),
+    'SNAT': ('nat snat', None),
+    'DNAT': ('nat dnat', None),
+    'REDIRECT': ('redirect', None),
+    'MARK': ('meta mark set', _format_mark_target),
+}
+
+
+def _format_target(rule: Rule) -> list[str]:
+    """Format the target part of a rule."""
+    target = rule.target
+    
+    if target in TARGET_MAP:
+        nft_target, formatter = TARGET_MAP[target]
+        if formatter:
+            return formatter(rule, nft_target)
+        return [nft_target]
+    
+    # Default: jump to chain
+    return [f"jump {target}"]
 
 
 def generate_nft_rules(domain) -> str:
